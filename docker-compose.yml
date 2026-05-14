@@ -27,6 +27,18 @@ services:
     depends_on:
       - db
 
+  ingestion:
+    build:
+      context: ./ingestion
+    env_file:
+      - .env
+    volumes:
+      - ./ingestion:/app
+    depends_on:
+      - db
+    profiles:
+      - ingestion
+
 volumes:
   db-data:
   pgadmin_data:

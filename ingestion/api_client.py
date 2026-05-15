@@ -9,7 +9,10 @@ def fetch_weather(latitude, longitude):
     params = {
         "latitude":latitude,
         "longitude": longitude,
-        "hourly": "temperature_2m"
+        "hourly": ["temperature_2m", "apparent_temperature", "relative_humidity_2m", "wind_speed_10m", "weather_code"],
+        "start_date": "2026-05-06",
+        "end_date": "2026-05-10",
+
     }
 
     response = requests.get(url, params=params)

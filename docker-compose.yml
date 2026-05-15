@@ -58,3 +58,9 @@ services:
 volumes:
   db-data:
   pgadmin_data:
+
+
+# TO RUN
+
+# Jupyter Lab
+# docker compose --profile notebook up --build jupyter

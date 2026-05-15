@@ -10,8 +10,8 @@ def fetch_weather(latitude, longitude):
         "latitude":latitude,
         "longitude": longitude,
         "hourly": ["temperature_2m", "apparent_temperature", "relative_humidity_2m", "wind_speed_10m", "weather_code"],
-        "start_date": "2026-05-06",
-        "end_date": "2026-05-10",
+        "start_date": "2026-01-01",
+        "end_date": "2026-04-30",
 
     }
 

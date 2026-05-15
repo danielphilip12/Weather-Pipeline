@@ -39,6 +39,22 @@ services:
     profiles:
       - ingestion
 
+  jupyter:
+    build:
+      context: ./notebooks
+      dockerfile: Dockerfile
+    container_name: weather-jupyter
+    profiles:
+      - notebook
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/app
+    env_file:
+      - .env
+    depends_on:
+      - db
+
 volumes:
   db-data:
   pgadmin_data:

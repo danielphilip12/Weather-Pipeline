@@ -109,6 +109,7 @@ def transform_hourly_weather(weather_data, location_id):
             "temperature_2m": "temperature",
             "apparent_temperature": "feels_like",
             "relative_humidity_2m": "humidity",
+            "surface_pressure": "pressure",
             "wind_speed_10m": "wind_speed",
         },
         inplace=True,
@@ -144,6 +145,7 @@ def load_weather_observations(df):
             temperature,
             feels_like,
             humidity,
+            pressure,
             wind_speed,
             weather_code
         )
@@ -154,6 +156,7 @@ def load_weather_observations(df):
             :temperature,
             :feels_like,
             :humidity,
+            :pressure,
             :wind_speed,
             :weather_code
         )
@@ -162,6 +165,7 @@ def load_weather_observations(df):
             temperature = EXCLUDED.temperature,
             feels_like = EXCLUDED.feels_like,
             humidity = EXCLUDED.humidity,
+            pressure = EXCLUDED.pressure,
             wind_speed = EXCLUDED.wind_speed,
             weather_code = EXCLUDED.weather_code;
     """)

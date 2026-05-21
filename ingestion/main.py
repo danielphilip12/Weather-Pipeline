@@ -1,5 +1,9 @@
 from api_client import fetch_weather
 from locations import get_locations
+from weather_transform_load import (
+    transform_hourly_weather,
+    load_weather_observations,
+)
 
 import os
 import time
@@ -95,88 +99,6 @@ def get_locations_from_db():
         return pd.read_sql("SELECT * FROM location", conn)
 
 
-def transform_hourly_weather(weather_data, location_id):
-    hourly = weather_data["hourly"]
-
-    df = pd.DataFrame(hourly)
-
-    df["id"] = [uuid.uuid4() for _ in range(len(df))]
-    df["location_id"] = location_id
-
-    df.rename(
-        columns={
-            "time": "observed_at",
-            "temperature_2m": "temperature",
-            "apparent_temperature": "feels_like",
-            "relative_humidity_2m": "humidity",
-            "surface_pressure": "pressure",
-            "wind_speed_10m": "wind_speed",
-        },
-        inplace=True,
-    )
-
-    wanted_columns = [
-        "id",
-        "location_id",
-        "observed_at",
-        "temperature",
-        "feels_like",
-        "humidity",
-        "pressure",
-        "wind_speed",
-        "weather_code",
-    ]
-
-    existing_columns = [col for col in wanted_columns if col in df.columns]
-
-    return df[existing_columns]
-
-
-def load_weather_observations(df):
-    if df.empty:
-        print("No weather observations to load.")
-        return
-
-    sql = text("""
-        INSERT INTO weather_observation (
-            id,
-            location_id,
-            observed_at,
-            temperature,
-            feels_like,
-            humidity,
-            pressure,
-            wind_speed,
-            weather_code
-        )
-        VALUES (
-            :id,
-            :location_id,
-            :observed_at,
-            :temperature,
-            :feels_like,
-            :humidity,
-            :pressure,
-            :wind_speed,
-            :weather_code
-        )
-        ON CONFLICT (location_id, observed_at)
-        DO UPDATE SET
-            temperature = EXCLUDED.temperature,
-            feels_like = EXCLUDED.feels_like,
-            humidity = EXCLUDED.humidity,
-            pressure = EXCLUDED.pressure,
-            wind_speed = EXCLUDED.wind_speed,
-            weather_code = EXCLUDED.weather_code;
-    """)
-
-    records = df.to_dict(orient="records")
-
-    with engine.begin() as conn:
-        conn.execute(sql, records)
-
-    print(f"Loaded or updated {len(records)} weather observation rows.")
-
 
 def main():
     print("Starting weather ingestion pipeline.")
@@ -201,7 +123,7 @@ def main():
             location_id=row["id"],
         )
 
-        load_weather_observations(weather_df)
+        load_weather_observations(weather_df, engine)
 
     print("Weather ingestion pipeline finished.")
 

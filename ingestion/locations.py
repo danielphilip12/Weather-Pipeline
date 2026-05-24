@@ -22,6 +22,13 @@ LOCATIONS = [
         "latitude": 45.5152,
         "longitude": -122.6784,
     },
+    {
+        "city": "Spokane Valley",
+        "state": "WA",
+        "country": "USA",
+        "latitude": 47.6588,
+        "longitude": -117.5322,
+    }
 ]
 
 

@@ -2,3 +2,5 @@
 ingestion/__pycache__/
 notebooks/.ipynb_checkpoints/
 .cache.sqlite
+
+ingestion/data/

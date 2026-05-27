@@ -1,5 +1,6 @@
 import uuid
 import pandas as pd
+from pathlib import Path
 from sqlalchemy import text
 
 
@@ -31,6 +32,7 @@ weather_code_map = {
     86: "Snow Showers",
 }
 
+
 def transform_hourly_weather(weather_data, location_id):
     hourly = weather_data["hourly"]
 
@@ -38,7 +40,7 @@ def transform_hourly_weather(weather_data, location_id):
 
     df["id"] = [uuid.uuid4() for _ in range(len(df))]
     df["location_id"] = location_id
-    df['weather_description'] = df['weather_code'].map(weather_code_map)
+    df["weather_description"] = df["weather_code"].map(weather_code_map)
 
     df.rename(
         columns={
@@ -69,13 +71,28 @@ def transform_hourly_weather(weather_data, location_id):
 
     return df[existing_columns]
 
-def load_weather_observations(df, engine):
+
+def export_weather_observations_to_csv(df, csv_path):
     if df.empty:
-        print("No weather observations to load.")
+        print("No weather observations to export.")
         return
 
-    sql = text("""
-        INSERT INTO weather_observation (
+    csv_path = Path(csv_path)
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+
+    df.to_csv(csv_path, index=False)
+
+    print(f"Exported {len(df)} weather observation rows to {csv_path}.")
+
+
+def load_weather_observations_from_csv(csv_path, engine):
+    csv_path = Path(csv_path)
+
+    if not csv_path.exists():
+        raise FileNotFoundError(f"CSV file not found: {csv_path}")
+
+    copy_sql = """
+        COPY weather_observation (
             id,
             location_id,
             observed_at,
@@ -87,32 +104,47 @@ def load_weather_observations(df, engine):
             weather_code,
             weather_description
         )
-        VALUES (
-            :id,
-            :location_id,
-            :observed_at,
-            :temperature,
-            :feels_like,
-            :humidity,
-            :pressure,
-            :wind_speed,
-            :weather_code,
-            :weather_description
-        )
-        ON CONFLICT (location_id, observed_at)
-        DO UPDATE SET
-            temperature = EXCLUDED.temperature,
-            feels_like = EXCLUDED.feels_like,
-            humidity = EXCLUDED.humidity,
-            pressure = EXCLUDED.pressure,
-            wind_speed = EXCLUDED.wind_speed,
-            weather_code = EXCLUDED.weather_code,
-            weather_description = EXCLUDED.weather_description;
-    """)
-
-    records = df.to_dict(orient="records")
+        FROM STDIN
+        WITH (
+            FORMAT csv,
+            HEADER true
+        );
+    """
 
     with engine.begin() as conn:
-        conn.execute(sql, records)
+        raw_conn = conn.connection
+        cursor = raw_conn.cursor()
 
-    print(f"Loaded or updated {len(records)} weather observation rows.")
+        with open(csv_path, "r", encoding="utf-8") as file:
+            cursor.copy_expert(copy_sql, file)
+
+    print(f"Loaded weather observations from {csv_path}.")
+
+def clear_weather_observations(engine):
+    with engine.begin() as conn:
+        conn.execute(text("TRUNCATE TABLE weather_observation;"))
+
+    print("Cleared weather_observation table.")
+
+def make_city_csv_filename(city, state):
+    city_part = city.lower().replace(" ", "_")
+    state_part = state.lower()
+
+    return f"{city_part}_{state_part}.csv"
+
+def load_weather_observations_from_csv_folder(folder_path, engine):
+    folder_path = Path(folder_path)
+
+    csv_files = sorted(folder_path.glob("*.csv"))
+
+    if not csv_files:
+        print(f"No CSV files found in {folder_path}.")
+        return
+
+    print(f"Found {len(csv_files)} CSV files to load.")
+
+    for csv_file in csv_files:
+        print(f"Loading {csv_file.name}...")
+        load_weather_observations_from_csv(csv_file, engine)
+
+    print("Finished loading all weather observation CSV files.")

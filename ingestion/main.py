@@ -1,8 +1,11 @@
-from api_client import fetch_weather
+from api_client import fetch_weather, YEARS
 from locations import get_locations
 from weather_transform_load import (
     transform_hourly_weather,
-    load_weather_observations,
+    export_weather_observations_to_csv,
+    load_weather_observations_from_csv_folder,
+    clear_weather_observations,
+    make_city_csv_filename,
 )
 
 import os
@@ -10,6 +13,7 @@ import time
 import uuid
 import pandas as pd
 
+from pathlib import Path
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
@@ -99,7 +103,6 @@ def get_locations_from_db():
         return pd.read_sql("SELECT * FROM location", conn)
 
 
-
 def main():
     print("Starting weather ingestion pipeline.")
 
@@ -107,23 +110,46 @@ def main():
 
     locations = get_locations()
 
-    # For early testing only.
-    # Long-term, replace this with an upsert.
     load_locations(locations)
 
     locs = get_locations_from_db()
 
+    output_folder = Path("data/processed/weather_observations")
+    output_folder.mkdir(parents=True, exist_ok=True)
+
     for _, row in locs.iterrows():
-        print(f"Fetching weather for {row['city']}...")
+        for year in YEARS:
+            start_date = f"{year}-01-01"
+            end_date = f"{year}-12-31"
 
-        weather_data = fetch_weather(row["latitude"], row["longitude"])
+            print(f"Fetching weather for {row['city']} - {year}...")
 
-        weather_df = transform_hourly_weather(
-            weather_data=weather_data,
-            location_id=row["id"],
-        )
+            weather_data = fetch_weather(
+                row["latitude"],
+                row["longitude"],
+                start_date,
+                end_date,
+            )
 
-        load_weather_observations(weather_df, engine)
+            print(f"Finished fetching {row['city']} - {year}. Transforming...")
+
+            weather_df = transform_hourly_weather(
+                weather_data=weather_data,
+                location_id=row["id"],
+            )
+
+            filename = make_city_csv_filename(row["city"], row["state"])
+            filename = filename.replace(".csv", f"_{year}.csv")
+
+            csv_path = output_folder / filename
+
+            export_weather_observations_to_csv(weather_df, csv_path)
+
+            print(f"Finished {row['city']} - {year}: {len(weather_df)} rows")
+
+    clear_weather_observations(engine)
+
+    load_weather_observations_from_csv_folder(output_folder, engine)
 
     print("Weather ingestion pipeline finished.")
 
